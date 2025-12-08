@@ -1,7 +1,9 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode, useRef } from 'react';
 import { User, Order, AuthContextType, SupportMessage, SiteSettings } from './types';
 import { db, supabase } from './services/supabaseClient';
 import { CONTACT_INFO, NOTIFICATION_SOUND_BASE64 } from './constants';
+import { getUserLocation } from './services/locationService';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -21,76 +23,121 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // New Notification Hook
   const [toastMessage, setToastMessage] = useState<{title: string, body: string} | null>(null);
 
+  // Audio Context Ref
+  const audioContextRef = useRef<AudioContext | null>(null);
+
+  // Initialize Audio Context on user interaction
+  const initAudio = () => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    if (audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume();
+    }
+  };
+
+  // Helper to play base64 sound via Web Audio API (More reliable than new Audio())
+  const playNotificationSound = async () => {
+    try {
+      if (!audioContextRef.current) {
+        initAudio();
+      }
+      
+      const ctx = audioContextRef.current;
+      if (!ctx) return;
+
+      // Convert Base64 to ArrayBuffer
+      const response = await fetch(NOTIFICATION_SOUND_BASE64);
+      const arrayBuffer = await response.arrayBuffer();
+      
+      // Decode and play
+      const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(ctx.destination);
+      source.start(0);
+    } catch (e) {
+      console.warn("Web Audio API failed, falling back to HTML5 Audio", e);
+      // Fallback
+      const audio = new Audio(NOTIFICATION_SOUND_BASE64);
+      audio.volume = 1.0;
+      audio.play().catch(err => console.log("Audio blocked:", err));
+    }
+  };
+
   // Function to manually request permission (called from Dashboard Settings)
   const requestNotificationPermission = async () => {
-    if ('Notification' in window) {
+    if (!('Notification' in window)) {
+      alert("This browser does not support notifications.");
+      return false;
+    }
+
+    try {
       const permission = await Notification.requestPermission();
+      initAudio(); // Initialize audio context on click
+      
       if (permission === 'granted') {
         playNotificationSound();
-        // Send a test notification to verify system integration
         sendBrowserNotification('নোটিফিকেশন চালু হয়েছে', 'এখন থেকে আপনি সাউন্ড এবং অ্যালার্ট পাবেন।');
         return true;
+      } else {
+        alert("Notification permission denied. Please enable it in browser settings.");
       }
+    } catch (e) {
+      console.error("Permission request error", e);
     }
     return false;
   };
 
-  const playNotificationSound = () => {
-    try {
-      const audio = new Audio(NOTIFICATION_SOUND_BASE64);
-      audio.volume = 1.0;
-      const playPromise = audio.play();
-      
-      if (playPromise !== undefined) {
-        playPromise.catch(error => {
-          console.warn("Audio blocked. Interaction needed.", error);
-          // Fallback: If blocked, we rely on the visual toast
-        });
-      }
-    } catch (e) {
-      console.warn("Sound error", e);
-    }
-  };
+  const sendBrowserNotification = async (title: string, body: string) => {
+    console.log("TRIGGERING NOTIFICATION:", title);
 
-  const sendBrowserNotification = (title: string, body: string) => {
-    // 1. Play Custom Sound (Base64)
+    // 1. Play Sound
     playNotificationSound();
 
-    // 2. Show In-App Toast
+    // 2. Show In-App Toast (Always works)
     setToastMessage({ title, body });
-    setTimeout(() => setToastMessage(null), 5000);
+    setTimeout(() => setToastMessage(null), 8000); 
 
-    // 3. Show System Notification (Service Worker Preferred)
+    // 3. Show System Notification
     if ('Notification' in window && Notification.permission === 'granted') {
       try {
-        if (navigator.serviceWorker && navigator.serviceWorker.ready) {
-          navigator.serviceWorker.ready.then(function(registration) {
-            registration.showNotification(title, {
-              body: body,
-              icon: 'https://cdn-icons-png.flaticon.com/512/893/893268.png', // Robot Icon
-              tag: 'automateiq-alert', 
-              requireInteraction: true, 
-              silent: false,
-              vibrate: [200, 100, 200]
-            } as any);
-          });
-        } else {
-          // Fallback to standard API if SW not ready
-          const n = new Notification(title, {
-            body: body,
-            icon: 'https://cdn-icons-png.flaticon.com/512/893/893268.png',
-            tag: 'automateiq-alert',
-            requireInteraction: true,
-            silent: false 
-          });
-          n.onclick = function() {
-            window.focus();
-            this.close();
-          };
+        // Option A: Service Worker (Best for Mobile Android)
+        if ('serviceWorker' in navigator) {
+           const registration = await navigator.serviceWorker.ready;
+           if (registration) {
+             console.log("Sending via Service Worker");
+             registration.showNotification(title, {
+               body: body,
+               icon: 'https://cdn-icons-png.flaticon.com/512/893/893268.png',
+               badge: 'https://cdn-icons-png.flaticon.com/512/893/893268.png',
+               tag: 'automateiq-alert-' + Date.now(), // Unique tag to prevent overwriting
+               vibrate: [200, 100, 200],
+               requireInteraction: true,
+               data: { url: window.location.href }
+             } as any);
+             return;
+           }
         }
+
+        // Option B: Standard API (Fallback for PC)
+        console.log("Sending via Standard API");
+        const n = new Notification(title, {
+          body: body,
+          icon: 'https://cdn-icons-png.flaticon.com/512/893/893268.png',
+          tag: 'automateiq-alert-' + Date.now(),
+          requireInteraction: true,
+          silent: false 
+        });
+        n.onclick = function() {
+          window.focus();
+          this.close();
+        };
       } catch (e) {
         console.warn("System notification failed", e);
       }
+    } else {
+      console.log("Permission not granted. Status:", Notification.permission);
     }
   };
 
@@ -138,12 +185,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const ensureProfile = async (sessionUser: any): Promise<User> => {
+    // Basic User construction from Session Metadata
     const baseUser: User = {
       id: sessionUser.id,
       email: sessionUser.email!,
       name: sessionUser.user_metadata?.full_name || 'User',
       phone: sessionUser.user_metadata?.phone || '',
-      role: 'user'
+      role: 'user',
+      location: sessionUser.user_metadata?.location // Check metadata first
     };
 
     const isAdminEmail = sessionUser.email === 'info@automateiq.xyz' || sessionUser.email === 'Admin@automateiq.xyz'; 
@@ -157,11 +206,30 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       let profile = await Promise.race([profilePromise, timeoutPromise]);
       
+      // If we have a profile from DB
       if (profile) {
         if (isAdminEmail && profile.role !== 'admin') {
            profile.role = 'admin';
         }
+        
+        // LOCATION UPDATE LOGIC
+        if (!profile.location || profile.location === 'Unknown' || profile.location === 'Unknown Location') {
+             let loc = sessionStorage.getItem('cached_location');
+             if (!loc) {
+                loc = await getUserLocation();
+             }
+             if (loc && loc !== 'Unknown Location') {
+                 profile.location = loc;
+                 db.upsertProfile(profile).catch(console.warn);
+             }
+        }
         return profile;
+      }
+
+      // If no profile exists in DB yet, create one
+      if (!baseUser.location || baseUser.location === 'Unknown') {
+          const cached = sessionStorage.getItem('cached_location');
+          baseUser.location = cached || await getUserLocation();
       }
 
       db.upsertProfile(baseUser).catch(err => console.warn("Background profile create failed", err));
@@ -174,9 +242,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     let mounted = true;
 
-    // Check notification permission silently on load
-    if ('Notification' in window && Notification.permission === 'default') {
-       // We don't force request here to avoid annoyance, user can click button in dashboard
+    // --- SILENT LOCATION PRE-FETCH ---
+    if (typeof sessionStorage !== 'undefined' && !sessionStorage.getItem('cached_location')) {
+        getUserLocation();
     }
 
     db.getSystemSettings().then(settings => {
@@ -205,7 +273,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
              email: session.user.email!,
              name: session.user.user_metadata?.full_name || 'User',
              phone: session.user.user_metadata?.phone || '',
-             role: session.user.email === 'info@automateiq.xyz' ? 'admin' : 'user'
+             role: session.user.email === 'info@automateiq.xyz' ? 'admin' : 'user',
+             location: session.user.user_metadata?.location 
           };
           
           setUser(tempUser);
@@ -270,8 +339,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const newOrder = payload.new as Order;
         const oldOrder = payload.old as Order;
 
-        // Logic: Admin sees all updates. User sees only their own.
-        // Also ensure Admin gets notified even if not their own ID
         const isAdmin = user.role === 'admin';
         const isMyOrder = newOrder.userId === user.id;
 
@@ -279,9 +346,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           if (payload.eventType === 'INSERT') {
              syncRealtimeOrder(newOrder, 'INSERT');
              
-             // NOTIFY ADMIN ON NEW ORDER (Important Fix: Ensure Admin hears this)
+             // NOTIFY ADMIN ON NEW ORDER
              if (isAdmin) {
-               sendBrowserNotification('নতুন অর্ডার!', `${newOrder.userName} অর্ডার করেছেন: ${newOrder.serviceName}`);
+               sendBrowserNotification('নতুন অর্ডার!', `${newOrder.userName} অর্ডার করেছেন: ${newOrder.serviceName} (${newOrder.amount})`);
              }
           } else if (payload.eventType === 'UPDATE') {
              syncRealtimeOrder(newOrder, 'UPDATE');
@@ -326,7 +393,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           if (!isFromMe) {
              // If I am Admin, and msg is from User -> Notify Me
              if (user.role === 'admin' && newMessage.sender_role === 'user') {
-                sendBrowserNotification('সাপোর্ট মেসেজ', 'একজন কাস্টমার মেসেজ পাঠিয়েছেন।');
+                sendBrowserNotification('🔔 সাপোর্ট মেসেজ', 'একজন কাস্টমার আপনাকে মেসেজ পাঠিয়েছেন।');
              } 
              // If I am User, and msg is from Admin -> Notify Me
              else if (user.role === 'user' && newMessage.sender_role === 'admin') {
@@ -346,7 +413,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // --- Auth Methods ---
 
   const signupUser = async (data: { name: string; email: string; phone: string; pass: string }) => {
-    const { error } = await db.signup(data);
+    let location = sessionStorage.getItem('cached_location');
+    if (!location) {
+        location = await getUserLocation();
+    }
+    const { error } = await db.signup({ ...data, location: location || 'Unknown' });
     if (error) return { success: false, message: error.message };
     return { success: true };
   };
@@ -361,7 +432,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       email: data.user.email!,
       name: data.user.user_metadata?.full_name || 'User',
       phone: data.user.user_metadata?.phone || '',
-      role: 'user'
+      role: 'user',
+      location: data.user.user_metadata?.location 
     };
     setUser(tempUser);
     ensureProfile(data.user);
@@ -432,7 +504,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const receiverId = user.role === 'admin' ? (targetUserId || user.id) : user.id; 
     
     const msgData: Partial<SupportMessage> = {
-      user_id: receiverId, // The conversation belongs to this user ID
+      user_id: receiverId, 
       sender_role: user.role,
       message: text,
       is_read: false
@@ -449,7 +521,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const success = await db.sendMessage(msgData);
     if (!success) {
         console.error("Failed to send message");
-        // Rollback optimistic update
         setMessages(prev => prev.filter(m => m.id !== tempMsg.id));
     }
     return success;
@@ -500,16 +571,17 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isLoading 
     }}>
       {children}
-      {/* Visual Toast Notification Component */}
+      
+      {/* Visual Toast Notification Component (Foreground) */}
       {toastMessage && (
-        <div className="fixed top-20 right-5 z-[100] animate-bounce-in">
-          <div className="bg-white border-l-4 border-blue-600 rounded shadow-2xl p-4 flex items-start gap-3 max-w-sm">
-             <div className="bg-blue-100 p-2 rounded-full text-blue-600">
+        <div className="fixed top-24 right-5 z-[100] animate-bounce-in cursor-pointer" onClick={() => setToastMessage(null)}>
+          <div className="bg-white border-l-4 border-blue-600 rounded-xl shadow-2xl p-4 flex items-start gap-3 max-w-sm ring-1 ring-black/5">
+             <div className="bg-blue-100 p-2 rounded-full text-blue-600 shrink-0 animate-pulse">
                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
              </div>
              <div>
-               <h4 className="font-bold text-slate-800 text-sm">{toastMessage.title}</h4>
-               <p className="text-xs text-slate-500 mt-1">{toastMessage.body}</p>
+               <h4 className="font-bold text-slate-900 text-sm">{toastMessage.title}</h4>
+               <p className="text-xs text-slate-500 mt-1 leading-relaxed">{toastMessage.body}</p>
              </div>
           </div>
         </div>

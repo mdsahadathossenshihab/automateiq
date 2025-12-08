@@ -1,4 +1,7 @@
+
 import { ReactNode } from 'react';
+
+export type Language = 'bn' | 'en';
 
 export interface Service {
   id: string;
@@ -55,6 +58,7 @@ export interface User {
   email: string;
   phone: string;
   role: 'admin' | 'user';
+  location?: string;
 }
 
 export interface Order {
@@ -70,23 +74,16 @@ export interface Order {
   trxId: string;
   status: 'pending' | 'approved' | 'rejected' | 'completed';
   date: string;
-  
-  // New Workflow Fields
-  adminFbLink?: string;        // Step 1: Admin sends link
-  
-  // Step 2: Client Submits
+  adminFbLink?: string;
   clientDocLink?: string;      
   clientRequirements?: string; 
   clientPageLink?: string;     
   clientEmail?: string;        
   clientWhatsapp?: string;     
-  
   isDetailsSubmitted?: boolean; 
-
-  // Step 3: Admin Review & Activation
-  startDate?: string;          // When the subscription actually starts (set by Admin)
-  completionDate?: string;     // Calculated deadline
-  adminMessage?: string;       // For requesting more info
+  startDate?: string;
+  completionDate?: string;
+  adminMessage?: string;
 }
 
 export interface SupportMessage {
@@ -109,23 +106,18 @@ export interface AuthContextType {
   orders: Order[];
   messages: SupportMessage[]; 
   siteSettings: SiteSettings;
-  
   signupUser: (data: { name: string; email: string; phone: string; pass: string }) => Promise<{ success: boolean; message?: string }>;
   verifyEmail: (email: string, token: string) => Promise<{ success: boolean; message?: string }>;
   resendSignupCode: (email: string) => Promise<{ success: boolean; message?: string }>;
   loginUser: (email: string, pass: string) => Promise<{ success: boolean; message?: string }>;
-  
   logout: () => void;
   addOrder: (order: Omit<Order, 'id' | 'date' | 'status'>) => Promise<void>;
   updateOrderStatus: (orderId: string, status: 'approved' | 'rejected' | 'completed') => Promise<boolean>;
   updateOrderDetails: (orderId: string, updates: Partial<Order>) => Promise<void>;
-
   sendSupportMessage: (text: string, targetUserId?: string) => Promise<boolean>;
   markMessagesRead: (userId: string) => Promise<void>;
-
   updateSiteSettings: (settings: SiteSettings) => Promise<boolean>;
-
+  requestNotificationPermission: () => Promise<boolean>;
   syncRealtimeOrder: (order: Order, eventType: 'INSERT' | 'UPDATE') => void;
-  
   isLoading: boolean;
 }

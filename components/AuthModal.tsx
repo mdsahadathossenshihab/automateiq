@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../AuthContext';
+import { useLanguage } from '../LanguageContext';
+import { trackPixelEvent } from '../services/pixelService';
 import { X, Mail, User as UserIcon, Phone, ArrowRight, Loader2, ShieldCheck, Lock, LogIn, UserPlus, RefreshCw } from 'lucide-react';
 
 interface AuthModalProps {
@@ -10,6 +12,7 @@ interface AuthModalProps {
 
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => {
   const { signupUser, verifyEmail, loginUser, resendSignupCode } = useAuth();
+  const { t } = useLanguage();
   
   const [view, setView] = useState<'login' | 'register' | 'verify'>('login');
   const [loading, setLoading] = useState(false);
@@ -36,7 +39,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
       onSuccess();
       onClose();
     } else {
-      setError('ইমেইল বা পাসওয়ার্ড ভুল। (নোট: অ্যাকাউন্ট ডিলিট করে থাকলে নতুন করে খুলতে হবে না, পুরাতন পাসওয়ার্ড দিয়েই লগইন করুন)');
+      setError('Invalid email or password.');
     }
   };
 
@@ -49,14 +52,14 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
     setLoading(false);
     
     if (result.success) {
-      setView('verify'); // Go to verify screen
+      trackPixelEvent('CompleteRegistration');
+      setView('verify');
     } else {
-      // Handle "User already registered" case
       if (result.message && (result.message.includes("already registered") || result.message.includes("unique constraint"))) {
-        setError('এই ইমেইলটি ইতিমধ্যে রেজিস্টার্ড। অনুগ্রহ করে লগইন করুন।');
+        setError('This email is already registered. Please login.');
         setShowExistingUserActions(true);
       } else {
-        setError(result.message || 'রেজিস্ট্রেশন ব্যর্থ হয়েছে।');
+        setError(result.message || 'Registration failed.');
       }
     }
   };
@@ -68,40 +71,25 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
     const result = await verifyEmail(email, otp);
     setLoading(false);
     if (result.success) {
-      // TRACK PIXEL: CompleteRegistration
-      try {
-        if ((window as any).fbq) {
-          (window as any).fbq('track', 'CompleteRegistration');
-          console.log("🔥 Pixel Fired: CompleteRegistration");
-        }
-      } catch (err) {
-        console.warn("Pixel tracking failed", err);
-      }
-
       onSuccess();
       onClose();
     } else {
-      setError('ভুল কোড। অনুগ্রহ করে সঠিক কোড দিন।');
+      setError('Invalid code.');
     }
   };
 
   const handleResend = async () => {
-    setResendStatus('পাঠানো হচ্ছে...');
+    setResendStatus('Sending...');
     const result = await resendSignupCode(email);
     if (result.success) {
-      setResendStatus('কোড পুনরায় পাঠানো হয়েছে! ইমেইল চেক করুন।');
-      // If triggered from signup error, move to verify screen
+      setResendStatus('Code resent! Check email.');
       if (view === 'register') {
         setView('verify');
         setError('');
         setShowExistingUserActions(false);
       }
     } else {
-      if (result.message?.includes('security purposes')) {
-        setResendStatus('একটু অপেক্ষা করুন (৬০ সেকেন্ড)');
-      } else {
-        setResendStatus('সমস্যা হয়েছে। অথবা আপনি ইতিমধ্যে ভেরিফাইড ইউজার। দয়া করে লগইন করুন।');
-      }
+      setResendStatus('Failed. Please try later.');
     }
     setTimeout(() => setResendStatus(''), 6000);
   };
@@ -121,12 +109,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
              {view === 'verify' && <ShieldCheck size={24} />}
           </div>
           <h2 className="text-2xl font-bold mb-1">
-            {view === 'login' ? 'লগইন করুন' : view === 'register' ? 'অ্যাকাউন্ট খুলুন' : 'ইমেইল ভেরিফিকেশন'}
+            {view === 'login' ? t('auth.login_title') : view === 'register' ? t('auth.register_title') : t('auth.verify_title')}
           </h2>
           <p className="text-blue-100 text-xs">
             {view === 'verify' 
-              ? `আমরা ${email} এ একটি কোড পাঠিয়েছি` 
-              : 'অর্ডার করার জন্য অ্যাকাউন্টে প্রবেশ করুন'}
+              ? `${t('auth.verify_subtitle')} ${email}`
+              : t('auth.login_subtitle')}
           </p>
         </div>
 
@@ -136,21 +124,21 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
           {/* Actions for Existing Users */}
           {showExistingUserActions && view === 'register' && (
              <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-100">
-               <p className="text-xs text-blue-800 mb-3 text-center">যেহেতু আপনার একাউন্ট আগে থেকেই আছে, তাই সরাসরি লগইন করুন।</p>
+               <p className="text-xs text-blue-800 mb-3 text-center">{t('auth.existing_user')}</p>
                <div className="flex flex-col gap-2">
                  <button 
                     type="button"
                     onClick={() => setView('login')}
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
                  >
-                   <LogIn size={16} /> লগইন পেইজে যান
+                   <LogIn size={16} /> {t('auth.goto_login')}
                  </button>
                  <button 
                     type="button"
                     onClick={handleResend}
                     className="bg-white text-blue-700 border border-blue-200 px-4 py-2 rounded-lg text-xs font-bold hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
                  >
-                   <RefreshCw size={14} /> যদি কোড না পেয়ে থাকেন (Resend Code)
+                   <RefreshCw size={14} /> {t('auth.resend')}
                  </button>
                </div>
                {resendStatus && <p className="text-xs text-green-600 mt-2 font-bold text-center animate-pulse">{resendStatus}</p>}
@@ -164,7 +152,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
                 <Mail className="absolute left-3 top-3.5 text-gray-500" size={18} />
                 <input 
                   type="email" 
-                  placeholder="ইমেইল এড্রেস (example@mail.com)"
+                  placeholder={t('auth.placeholder_email')}
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white text-slate-900 placeholder-gray-500 outline-none text-sm shadow-sm"
@@ -175,7 +163,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
                 <Lock className="absolute left-3 top-3.5 text-gray-500" size={18} />
                 <input 
                   type="password" 
-                  placeholder="পাসওয়ার্ড দিন"
+                  placeholder={t('auth.placeholder_pass')}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white text-slate-900 placeholder-gray-500 outline-none text-sm shadow-sm"
@@ -187,11 +175,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
                 disabled={loading}
                 className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl hover:bg-blue-700 transition-colors shadow-lg flex justify-center items-center gap-2"
               >
-                {loading ? <Loader2 size={18} className="animate-spin" /> : 'লগইন করুন'}
+                {loading ? <Loader2 size={18} className="animate-spin" /> : t('auth.btn_login')}
               </button>
               
               <div className="text-center text-sm text-gray-500 mt-4">
-                একাউন্ট নেই? <button type="button" onClick={() => setView('register')} className="text-blue-600 font-bold hover:underline">রেজিস্ট্রেশন করুন</button>
+                {t('auth.no_account')} <button type="button" onClick={() => setView('register')} className="text-blue-600 font-bold hover:underline">{t('auth.btn_signup')}</button>
               </div>
             </form>
           )}
@@ -203,7 +191,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
                 <UserIcon className="absolute left-3 top-3.5 text-gray-500" size={18} />
                 <input 
                   type="text" 
-                  placeholder="আপনার পূর্ণ নাম"
+                  placeholder={t('auth.placeholder_name')}
                   value={name}
                   onChange={e => setName(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white text-slate-900 placeholder-gray-500 outline-none text-sm shadow-sm"
@@ -214,7 +202,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
                 <Phone className="absolute left-3 top-3.5 text-gray-500" size={18} />
                 <input 
                   type="tel" 
-                  placeholder="ফোন নাম্বার (০১৭১...)"
+                  placeholder={t('auth.placeholder_phone')}
                   value={phone}
                   onChange={e => setPhone(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white text-slate-900 placeholder-gray-500 outline-none text-sm shadow-sm"
@@ -225,7 +213,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
                 <Mail className="absolute left-3 top-3.5 text-gray-500" size={18} />
                 <input 
                   type="email" 
-                  placeholder="ইমেইল এড্রেস"
+                  placeholder={t('auth.placeholder_email')}
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white text-slate-900 placeholder-gray-500 outline-none text-sm shadow-sm"
@@ -236,7 +224,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
                 <Lock className="absolute left-3 top-3.5 text-gray-500" size={18} />
                 <input 
                   type="password" 
-                  placeholder="পাসওয়ার্ড (নূন্যতম ৬ সংখ্যা)"
+                  placeholder={t('auth.placeholder_pass_min')}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white text-slate-900 placeholder-gray-500 outline-none text-sm shadow-sm"
@@ -247,13 +235,13 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
               <button 
                 type="submit"
                 disabled={loading}
-                className="w-full bg-green-600 text-white font-bold py-3.5 rounded-xl hover:bg-green-700 transition-colors shadow-lg flex justify-center items-center gap-2"
+                className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl hover:bg-blue-700 transition-colors shadow-lg flex justify-center items-center gap-2"
               >
-                {loading ? <Loader2 size={18} className="animate-spin" /> : <>সাইন আপ করুন <ArrowRight size={18} /></>}
+                {loading ? <Loader2 size={18} className="animate-spin" /> : <>{t('auth.btn_signup')} <ArrowRight size={18} /></>}
               </button>
 
               <div className="text-center text-sm text-gray-500 mt-4">
-                ইতিমধ্যে একাউন্ট আছে? <button type="button" onClick={() => setView('login')} className="text-blue-600 font-bold hover:underline">লগইন করুন</button>
+                {t('auth.have_account')} <button type="button" onClick={() => setView('login')} className="text-blue-600 font-bold hover:underline">{t('auth.btn_login')}</button>
               </div>
             </form>
           )}
@@ -272,14 +260,14 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
                     maxLength={8}
                     autoFocus
                   />
-                  <p className="text-xs text-gray-500 mt-2">আপনার ইমেইলে পাওয়া ভেরিফিকেশন কোডটি দিন</p>
+                  <p className="text-xs text-gray-500 mt-2">{t('auth.verify_subtitle')}</p>
                 </div>
                 <button 
                   type="submit"
                   disabled={loading}
                   className="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl hover:bg-blue-700 transition-colors shadow-lg flex justify-center items-center gap-2"
                 >
-                  {loading ? <Loader2 size={18} className="animate-spin" /> : 'কোড ভেরিফাই করুন'}
+                  {loading ? <Loader2 size={18} className="animate-spin" /> : t('auth.btn_verify')}
                 </button>
               </form>
 
@@ -289,7 +277,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
                   onClick={handleResend}
                   className="flex items-center justify-center gap-2 mx-auto text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors"
                 >
-                  <RefreshCw size={14} /> কোড পাননি? আবার পাঠান
+                  <RefreshCw size={14} /> {t('auth.resend')}
                 </button>
                 {resendStatus && <p className="text-xs text-green-600 mt-1 animate-pulse">{resendStatus}</p>}
               </div>
@@ -299,7 +287,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess }) => 
                 onClick={() => setView('register')}
                 className="w-full text-center text-sm text-gray-500 hover:text-gray-700 mt-2"
               >
-                ভুল ইমেইল? পরিবর্তন করুন
+                {t('auth.wrong_email')}
               </button>
             </div>
           )}

@@ -59,10 +59,10 @@ const ChatAssistant: React.FC = () => {
       {!isOpen && (
         <button
           onClick={toggleChat}
-          className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 shadow-lg transition-all duration-300 transform hover:scale-110 flex items-center gap-2 group"
+          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-full p-4 shadow-[0_0_20px_rgba(59,130,246,0.5)] transition-all duration-300 transform hover:scale-110 flex items-center gap-2 group border border-blue-400/30"
         >
-          <Bot size={28} />
-          <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 ease-in-out whitespace-nowrap">
+          <Bot size={28} className="animate-bounce-slow" />
+          <span className="max-w-0 overflow-hidden group-hover:max-w-xs transition-all duration-500 ease-in-out whitespace-nowrap font-bold">
             সাহায্য প্রয়োজন?
           </span>
         </button>
@@ -77,7 +77,7 @@ const ChatAssistant: React.FC = () => {
               <div>
                 <h3 className="font-bold">AutoMateIQ AI</h3>
                 <span className="text-xs text-blue-100 flex items-center gap-1">
-                  <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
+                  <span className="w-2 h-2 bg-white rounded-full animate-pulse"></span>
                   অনলাইন
                 </span>
               </div>

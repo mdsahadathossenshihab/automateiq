@@ -1,32 +1,39 @@
 import React, { useEffect } from 'react';
 import { ServiceDetailContent } from '../types';
-import { CONTACT_INFO } from '../constants';
-import { X, CheckCircle, Smartphone, ArrowRight, Video, Calendar, Settings, Facebook } from 'lucide-react';
+import { CONTACT_INFO, getServiceDetails } from '../constants';
+import { trackPixelEvent } from '../services/pixelService';
+import { X, CheckCircle, ArrowRight, Video, Settings, Facebook } from 'lucide-react';
+import { useLanguage } from '../LanguageContext';
 
 interface ServiceDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
-  content: ServiceDetailContent | null;
+  serviceId: string | null;
 }
 
-const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({ isOpen, onClose, content }) => {
+const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({ isOpen, onClose, serviceId }) => {
+  const { language } = useLanguage();
+  
+  // Reactive Data
+  const serviceDetails = getServiceDetails(language);
+  const content: ServiceDetailContent | null = serviceId && serviceDetails[serviceId] 
+    ? serviceDetails[serviceId] 
+    : serviceId && serviceDetails['default'] 
+      ? serviceDetails['default'] 
+      : null;
+
   // Track ViewContent when modal opens
   useEffect(() => {
     if (isOpen && content) {
-      try {
-        if ((window as any).fbq) {
-          (window as any).fbq('track', 'ViewContent', {
-            content_name: content.title,
-            content_category: 'Service',
-            content_ids: [content.id],
-            content_type: 'product'
-          });
-        }
-      } catch (err) {
-        // fail silently
-      }
+      trackPixelEvent('ViewContent', {
+        content_name: content.title,
+        content_ids: [content.id],
+        content_type: 'product',
+        value: 0, // Viewing has no direct value
+        currency: 'BDT'
+      });
     }
-  }, [isOpen, content]);
+  }, [isOpen, content?.id]);
 
   if (!isOpen || !content) return null;
 
@@ -40,7 +47,7 @@ const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({ isOpen, onClose
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col animate-fade-in-up transform transition-all">
         
         {/* Header */}
-        <div className="bg-gradient-to-r from-indigo-900 to-blue-900 p-6 text-white relative shrink-0">
+        <div className="bg-gradient-to-r from-blue-900 to-indigo-900 p-6 text-white relative shrink-0">
           <button 
             onClick={onClose} 
             className="absolute top-4 right-4 text-blue-200 hover:text-white bg-white/10 hover:bg-white/20 p-2 rounded-full transition-colors"
@@ -76,15 +83,15 @@ const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({ isOpen, onClose
           </section>
 
           {/* Benefits */}
-          <section className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100 shadow-sm">
+          <section className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100 shadow-sm">
             <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <CheckCircle className="text-green-600" size={20} />
+              <CheckCircle className="text-blue-600" size={20} />
               সুবিধাসমূহ
             </h3>
             <ul className="grid grid-cols-1 gap-3">
               {content.benefits.map((benefit, idx) => (
                 <li key={idx} className="flex items-start gap-3 text-sm text-gray-700">
-                  <ArrowRight size={16} className="text-green-500 mt-1 shrink-0" />
+                  <ArrowRight size={16} className="text-blue-500 mt-1 shrink-0" />
                   <span className="font-medium">{benefit}</span>
                 </li>
               ))}
@@ -111,7 +118,7 @@ const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({ isOpen, onClose
         <div className="p-5 border-t border-gray-100 bg-gray-50 shrink-0 flex flex-col md:flex-row gap-3">
           <button 
             onClick={handleBookMeeting}
-            className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg hover:shadow-green-500/30 flex items-center justify-center gap-2"
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2"
           >
             <Video size={20} />
             মিটিং বুক করুন (WhatsApp)
@@ -121,7 +128,7 @@ const ServiceDetailModal: React.FC<ServiceDetailModalProps> = ({ isOpen, onClose
             href={CONTACT_INFO.facebookPage}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2"
+            className="flex-1 bg-indigo-800 hover:bg-indigo-900 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg hover:shadow-indigo-700/30 flex items-center justify-center gap-2"
           >
             <Facebook size={20} />
             ফেসবুক পেজ ভিজিট করুন

@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { User, Order, SupportMessage, SiteSettings } from '../types';
 
@@ -30,7 +31,7 @@ export const db = {
   // --- AUTH FUNCTIONS (Password Based) ---
 
   // 1. Sign Up with Email, Password & Meta Data
-  signup: async (data: { email: string; pass: string; name: string; phone: string }) => {
+  signup: async (data: { email: string; pass: string; name: string; phone: string; location?: string }) => {
     if (!supabase) return { error: { message: "System offline" } };
     return await supabase.auth.signUp({
       email: data.email,
@@ -39,6 +40,7 @@ export const db = {
         data: {
           full_name: data.name,
           phone: data.phone,
+          location: data.location || 'Unknown',
           role: 'user' // Default role
         }
       }
@@ -82,7 +84,8 @@ export const db = {
         email: user.email,
         name: user.name,
         phone: user.phone,
-        role: user.role
+        role: user.role,
+        location: user.location // Save location to DB
       });
       if (error) {
         // Log specific error if table is missing or RLS issue
@@ -90,6 +93,17 @@ export const db = {
           console.error("DATABASE ERROR: 'profiles' table not found. Please run the provided SQL script.");
         } else if (error.code === '42883') {
           console.error("DATABASE ERROR: Type mismatch (UUID vs Text). Please run the provided SQL script with UUID types.");
+        } else if (error.code === '42703') {
+           console.warn("DATABASE WARNING: 'location' column missing in profiles table. Add it via SQL Editor.");
+           // Fallback: try upsert without location if it failed due to missing column
+           await supabase.from('profiles').upsert({
+              id: user.id,
+              email: user.email,
+              name: user.name,
+              phone: user.phone,
+              role: user.role
+           });
+           return;
         }
         // Don't throw, just log. We don't want to crash the UI.
         console.warn("Upsert failed", error);

@@ -3,27 +3,31 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
 
-// Service Worker Registration for Notifications
+// Prevent service worker caching issues
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .then((registration) => {
-        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-      })
-      .catch((err) => {
-        console.log('ServiceWorker registration failed: ', err);
-      });
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    registrations.forEach((registration) => {
+      registration.unregister();
+    });
+  }).catch(error => {
+    console.warn('Service Worker unregistration failed:', error);
   });
 }
 
 const rootElement = document.getElementById('root');
-if (!rootElement) {
-  throw new Error("Could not find root element to mount to");
-}
 
-const root = ReactDOM.createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+if (!rootElement) {
+  console.error("Could not find root element to mount to");
+} else {
+  try {
+    const root = ReactDOM.createRoot(rootElement);
+    root.render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    );
+  } catch (e) {
+    console.error("Root render failed:", e);
+    rootElement.innerHTML = '<div style="padding: 20px; text-align: center; font-family: sans-serif;"><h1>Failed to start application</h1><p>Please reload the page.</p></div>';
+  }
+}

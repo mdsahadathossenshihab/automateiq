@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../AuthContext';
 import { useLanguage } from '../LanguageContext';
@@ -312,10 +311,24 @@ const Dashboard: React.FC<DashboardProps> = ({ onClose, onNavigateToPricing }) =
   const handleApproveClick = (order: Order) => { setSelectedOrder(order); setIsApproveModalOpen(true); };
   const confirmApprove = async (data: { adminFbLink: string, startDate?: string }) => { if (!selectedOrder) return; await updateOrderStatus(selectedOrder.id, 'approved'); const updates: any = { adminFbLink: data.adminFbLink }; if (data.startDate) updates.startDate = data.startDate; await updateOrderDetails(selectedOrder.id, updates); setIsApproveModalOpen(false); setSelectedOrder(null); };
   const handleReviewClick = (order: Order) => { setSelectedOrder(order); setIsReviewModalOpen(true); };
-  const confirmReviewAction = async (action: 'activate' | 'request_info', data: any) => { if (!selectedOrder) return; if (action === 'activate') { await updateOrderDetails(selectedOrder.id, { completionDate: data.completionDate, startDate: data.startDate, adminMessage: null }); } else { await updateOrderDetails(selectedOrder.id, { adminMessage: data.adminMessage, isDetailsSubmitted: false }); } setIsReviewModalOpen(false); setSelectedOrder(null); };
+  const confirmReviewAction = async (action: 'activate' | 'request_info', data: any) => { 
+    if (!selectedOrder) return; 
+    if (action === 'activate') { 
+      await updateOrderDetails(selectedOrder.id, { completionDate: data.completionDate, startDate: data.startDate, adminMessage: undefined }); 
+    } else { 
+      await updateOrderDetails(selectedOrder.id, { adminMessage: data.adminMessage, isDetailsSubmitted: false }); 
+    } 
+    setIsReviewModalOpen(false); 
+    setSelectedOrder(null); 
+  };
   const handleReject = async (orderId: string) => { if (confirm('Reject this order?')) { await updateOrderStatus(orderId, 'rejected'); } };
   const handleComplete = async (orderId: string) => { if (confirm('Mark as Completed?')) { await updateOrderStatus(orderId, 'completed'); } };
-  const handleClientSubmit = async (data: any) => { const pendingOrder = orders.find(o => o.status === 'approved' && (!o.isDetailsSubmitted || !!o.adminMessage) && !o.startDate); if (pendingOrder) { await updateOrderDetails(pendingOrder.id, { ...data, isDetailsSubmitted: true, adminMessage: null }); } };
+  const handleClientSubmit = async (data: any) => { 
+    const pendingOrder = orders.find(o => o.status === 'approved' && (!o.isDetailsSubmitted || !!o.adminMessage) && !o.startDate); 
+    if (pendingOrder) { 
+      await updateOrderDetails(pendingOrder.id, { ...data, isDetailsSubmitted: true, adminMessage: undefined }); 
+    } 
+  };
   const handleSaveSettings = async () => { setIsSavingSettings(true); const success = await updateSiteSettings({ facebook: settingsFb, youtube: settingsYt }); setIsSavingSettings(false); if (success) alert("Saved!"); };
 
   const handleLogout = () => {

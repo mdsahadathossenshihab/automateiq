@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MessageCircle, X, Send, Bot, Headset } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, Headphones } from 'lucide-react';
 import { sendMessageToGemini } from '../services/geminiService';
 import { ChatMessage } from '../types';
 import { CONTACT_INFO } from '../constants';
@@ -89,7 +89,7 @@ const ChatAssistant: React.FC = () => {
                 className="bg-white/20 hover:bg-white/30 p-1.5 rounded-lg transition-colors text-xs flex items-center gap-1"
                 title="এজেন্টের সাথে কথা বলুন"
               >
-                <Headset size={16} />
+                <Headphones size={16} />
               </button>
               <button onClick={toggleChat} className="text-white/80 hover:text-white transition-colors">
                 <X size={24} />
@@ -136,7 +136,7 @@ const ChatAssistant: React.FC = () => {
                onClick={handleAgentClick}
                className="text-xs font-bold text-blue-700 flex items-center gap-1 hover:underline"
              >
-               <Headset size={12} /> এজেন্টের সাথে কথা বলুন
+               <Headphones size={12} /> এজেন্টের সাথে কথা বলুন
              </button>
           </div>
 

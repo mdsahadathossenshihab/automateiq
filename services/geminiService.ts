@@ -1,21 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
 import { SYSTEM_INSTRUCTION } from '../constants';
 
-const apiKey = process.env.API_KEY;
-
-let aiClient: GoogleGenAI | null = null;
-
-if (apiKey) {
-  aiClient = new GoogleGenAI({ apiKey: apiKey });
-} else {
-  console.warn("API_KEY is missing in process.env. The chat feature will not work.");
-}
+const aiClient = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const sendMessageToGemini = async (userMessage: string): Promise<string> => {
-  if (!aiClient) {
-    return "দুঃখিত, বর্তমানে এআই সিস্টেমটি উপলব্ধ নেই।";
-  }
-
   try {
     const response = await aiClient.models.generateContent({
       model: 'gemini-2.5-flash',

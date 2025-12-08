@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { getServices, getPricingPackages, getApiTopupPackage, CONTACT_INFO, getServiceDetails } from './constants';
 import ServiceCard from './components/ServiceCard';
@@ -8,6 +9,7 @@ import ServiceDetailModal from './components/ServiceDetailModal';
 import Dashboard from './components/Dashboard';
 import AuthModal from './components/AuthModal';
 import ApiTopupSection from './components/ApiTopupSection';
+import AiFeaturesSection from './components/AiFeaturesSection';
 import Logo from './components/Logo';
 import { AuthProvider, useAuth } from './AuthContext';
 import { LanguageProvider, useLanguage } from './LanguageContext';
@@ -442,6 +444,9 @@ const AppContent: React.FC = () => {
 
         </div>
       </section>
+
+      {/* NEW AI Features Section */}
+      <AiFeaturesSection />
 
       {/* Services Section */}
       <section id="services" className="py-24 px-4 sm:px-6 lg:px-8 relative z-10">

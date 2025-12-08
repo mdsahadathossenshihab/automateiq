@@ -21,6 +21,19 @@ export const translations = {
       btn_start: 'শুরু করুন',
       btn_services: 'সার্ভিস দেখুন'
     },
+    ai_section: {
+      title: 'ফিউচার রেডি',
+      title_highlight: 'AI টেকনোলজি',
+      subtitle: 'সাধারণ চ্যাটবট নয়, আমরা ব্যবহার করছি বিশ্বের সবচেয়ে শক্তিশালী AI মডেল (Gemini & GPT-4) যা আপনার বিজনেসকে করবে স্মার্ট।',
+      f1_title: 'ন্যাচারাল ল্যাঙ্গুয়েজ (NLP)',
+      f1_desc: 'বট এখন মানুষের মতো ভাষা বোঝে এবং উত্তর দেয়। কিওয়ার্ডের দিন শেষ, এখন যুগ কনটেক্সটের।',
+      f2_title: 'কনটেন্ট জেনারেশন',
+      f2_desc: 'সোশ্যাল মিডিয়া পোস্ট, ক্যাপশন বা ইমেইল—AI লিখবে আপনার হয়ে, নিমেষেই।',
+      f3_title: 'ডাটা এনালিটিক্স',
+      f3_desc: 'কাস্টমার কনভারসেশন থেকে ইনসাইট বের করে সেলস বাড়ানোর স্মার্ট সাজেশন।',
+      f4_title: 'ভয়েস অটোমেশন',
+      f4_desc: 'কল রিসিভ করা বা কল করা—সবই করবে আমাদের হিউম্যান-লাইক ভয়েস এজেন্ট (শীঘ্রই আসছে)।'
+    },
     services: {
       title: 'আমাদের সার্ভিসসমূহ',
       subtitle: 'আমরা আপনার ব্যবসার জন্য আধুনিক প্রযুক্তির অটোমেশন সার্ভিস প্রদান করে থাকি।',
@@ -167,6 +180,19 @@ export const translations = {
       subtitle: 'Architecting autonomous workflows. We connect Messenger, WhatsApp, AI Agents, and Apps to deliver instant results to your customers.',
       btn_start: 'Let\'s Automate',
       btn_services: 'Explore Services'
+    },
+    ai_section: {
+      title: 'Future Ready',
+      title_highlight: 'AI Technology',
+      subtitle: 'Not just basic chatbots, we leverage the world\'s most powerful AI models (Gemini & GPT-4) to make your business smarter.',
+      f1_title: 'Natural Language (NLP)',
+      f1_desc: 'Bots now understand language like humans. The days of keywords are over; context is king.',
+      f2_title: 'Content Generation',
+      f2_desc: 'Social posts, captions, or emails—AI writes for you instantly.',
+      f3_title: 'Data Analytics',
+      f3_desc: 'Extract insights from customer conversations to provide smart sales suggestions.',
+      f4_title: 'Voice Automation',
+      f4_desc: 'Our human-like voice agents will handle incoming and outgoing calls (Coming Soon).'
     },
     services: {
       title: 'Our Services',
